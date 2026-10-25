@@ -1,0 +1,5 @@
+Read and follow SPEC.md first.
+
+You are the **only coding agent** on MiniShop. Starting from the `benchmark-start` commit, implement the complete SPEC.md: cart and pricing, coupons, inventory reservation/idempotence, order checkout, and runnable demo. You own all implementation files and must integrate and test the entire application. Do not spawn subagents or ask another coding agent to perform tasks. You may ask your human operator questions under the common assistance policy. Deliver code that passes `npm run typecheck`, `npm test`, and `npm run demo`; identify any outstanding limitations.
+
+Use only the repository and tools allowed in your assigned scenario. Follow SPEC.md and the existing public types. You may write unit tests. Do not modify benchmark-owned evaluator tests. Ask humans only when needed; humans record all active assistance. Communicate naturally using the channels allowed for this scenario. Do not assume another agent's uncommitted work has landed. Signal when your assigned work is finished, including any remaining integration risks. Do not misrepresent unrun tests as passing.

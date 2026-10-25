@@ -1,0 +1,5 @@
+Read and follow SPEC.md first.
+
+You own `src/orders.ts`, `src/demo.ts`, and checkout-focused tests. Implement full checkout orchestration, error propagation, order storage, same-order-ID request idempotence, and the runnable demo according to SPEC.md and `src/types.ts`. Integrate with the other three public modules. Coordinate interface assumptions and integration failures with those agents using the channels enabled in this scenario. Do not independently rewrite their modules. Deliver an end-to-end runnable checkout flow.
+
+Use only the repository and tools allowed in your assigned scenario. Follow SPEC.md and the existing public types. You may write unit tests. Do not modify benchmark-owned evaluator tests. Ask humans only when needed; humans record all active assistance. Communicate naturally using the channels allowed for this scenario. Do not assume another agent's uncommitted work has landed. Signal when your assigned work is finished, including any remaining integration risks. Do not misrepresent unrun tests as passing.
