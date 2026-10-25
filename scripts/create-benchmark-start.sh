@@ -28,6 +28,7 @@ required=(
   tsconfig.demo.json
   vitest.config.ts
   .gitignore
+  cowork.owners.json
   SPEC.md
   README.md
   src/types.ts

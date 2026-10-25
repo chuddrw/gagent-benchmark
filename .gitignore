@@ -4,3 +4,6 @@ coverage/
 results/
 *.log
 .DS_Store
+# Written into a trial clone by Agent Cowork's install-hooks. Not product source.
+.claude/settings.local.json
+.mcp.json

@@ -6,13 +6,15 @@ Does Gagent reduce **human intervention time** and **time to a correct integrate
 Modes:
 - `solo`: One engineer operates one coding agent on one machine.
 - `github`: Four engineers each operate one agent on separate machines. They coordinate through GitHub branches, PR comments, issues, and ordinary GitHub CI. No Gagent messages, shared-intent feed, or agent-triggered repairs.
-- `gagent`: The same four engineers, machines, agents, and task divisions as `github`, plus Gagent shared intentions, continuous WIP integration, conflict assignment, negotiated repair (if implemented), and verification.
+- `gagent`: The same four engineers, machines, agents, and task divisions as `github`, plus Agent Cowork. The benchmark mode name stays `gagent`. Cowork snapshots uncommitted work, lets agents check the merged team tree, and resolves a conflict only when both agents agree.
 
 **Don't rig the comparison:** Give every mode the *same* complete project specification and final acceptance tests. The solo agent receives the whole project; four-agent modes receive the same specification split into four feature tickets. It is legitimate that solo and multi-agent work differently; keep hardware/model/token budget, starting repository, and success criteria documented. Four-agent modes must use identical tickets and starting code. Use the same amount of human access across modes.
 
 ## Test project: MiniShop checkout (TypeScript)
 
-The starter repository contains `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts`, shared `src/types.ts`, and a CLI demo at `src/demo.ts`. There is no web UI. Normative behavior is `SPEC.md`, including its Frozen rulings. Where this overview is shorter, `SPEC.md` wins.
+The starter repository contains `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts`, shared `src/types.ts`, a CLI demo at `src/demo.ts`, and `cowork.owners.json`. There is no web UI. Normative behavior is `SPEC.md`, including its Frozen rulings. Where this overview is shorter, `SPEC.md` wins.
+
+`cowork.owners.json` names which agent owns which module. Agent Cowork reads it in `gagent` mode. Solo and GitHub ignore it. It carries no instructions for the agents, and the same file is in every mode so the starter stays identical.
 
 ### Functional specification, identical in all modes
 1. **Cart**: `priceCents` is an integer number of cents; calculate line totals and subtotal from quantity. Purchase quantities are strictly positive. `SPEC.md` has the full validation rules.
@@ -59,14 +61,16 @@ Tests must be equally available and/or withheld for all modes. Run private holdo
 - Four agents on four computers, each assigned its feature ticket.
 - Coordination through GitHub issues, PRs, PR comments, branches, and normal CI only.
 - Humans may coordinate or resolve failures, with every intervention logged.
-- No Gagent hooks, WIP aggregator, automated cross-agent failure routing, or shared-intent messages.
+- No Agent Cowork hooks, MCP tools, orchestrator, or `wip/<agent>` snapshots.
 
 ### C — Gagent team
-- Same four tickets, four machines, models, prompts, and GitHub access as B.
-- Turn on Gagent hooks and shared intentions; auto-snapshot to dedicated `wip/<agent>` branches.
-- Watcher evaluates current combined work in an isolated worktree and reports integration failures.
-- Route conflicts to agents; if implemented, require a shared resolution/contract before repairs. Record all automated repair attempts.
-- The final artifact still passes the **same** acceptance suite as A and B.
+Agent Cowork, recorded here as mode `gagent`. Same four tickets, four machines, models, prompts, and GitHub access as B.
+- Hooks snapshot each agent's uncommitted work to `wip/<agent>` after every edit, and wake an idle agent when its inbox gets a task, a conflict, or a message.
+- MCP tools: `post_intent` for shared intentions, `check_with_team` (that agent's work merged with every teammate's work in progress, then `tsc` and Vitest), `pull_teammate`, conflict-thread messages and `agree`, `ask_orchestrator`, and `get_full_stack`.
+- The orchestrator is Factory Droid. It plans a human request into per-owner tasks, flags expected conflicts, and asks the affected humans to review any change to a shared contract (`src/types.ts`) or to another owner's files. A scored trial does not start there. Each agent receives its ticket prompt directly, as in GitHub mode. If a team uses `ask_orchestrator`, record that in the trial notes.
+- Conflicts are threads between the two agents. Both agreeing, plus a green check, resolves the conflict. After 12 messages or 5 minutes the thread escalates to both humans on the dashboard.
+- `cowork/full-stack` is `main` plus everyone's latest work. It is pushed only when the merged result passes.
+- The final artifact still passes the **same** acceptance suite as A and B. A green `check_with_team` or a green `cowork/full-stack` does not end the trial.
 
 ### Completion rule
 Stop timing on the first **integrated**, reproducible, successfully checked-out artifact passing the full *independent* acceptance suite. A green TypeScript run alone is not completion. A partial result at time limit is a failure/censored trial (record completed features and failing tests). Do not exclude unsuccessful trials from averages.
@@ -102,7 +106,7 @@ The time-budget examples in this file (45 minutes) and in `SETUP_AND_PROMPTS.md`
 ## Demo video sequence (60–90 seconds of benchmark evidence)
 1. Show the same MiniShop feature list and acceptance criteria for all three setups.
 2. Show four independently progressing agents in GitHub-only mode; reveal one real combined failure and the manual coordination required to resolve it. Don't invent the failure if it didn't occur.
-3. Replay the analogous Gagent run: live WIP checks turn red, conflict notification and explanation arrive, the agent(s) settle the fix, then watcher turns green. Only show features that really worked in that run.
+3. Replay the analogous Gagent run: `check_with_team` goes red, a conflict thread opens, both agents agree on a fix, and the check goes green. Only show features that really worked in that run. A green Cowork check is not the benchmark result.
 4. Show the final measured A/B/C table, include denominators and whether numbers are single runs or medians.
 5. State the narrowly supported conclusion: 'In this benchmark, Gagent reduced X versus standard GitHub coordination while meeting the same acceptance criteria' **only if the measurements prove it**.
 
@@ -110,14 +114,14 @@ The time-budget examples in this file (45 minutes) and in `SETUP_AND_PROMPTS.md`
 To demonstrate the mechanism deterministically, use an explicitly labeled diagnostic scenario: A changes an API to emit milliseconds, B consumes seconds, both isolated unit tests pass but a holdout integration test catches the mismatch. This is a useful live feature demonstration but **not** evidence of typical performance; keep it separate from natural-task benchmark trials.
 
 ## Questions the team must freeze
-- Is Gagent currently just detection + fixer assignment, or does it enforce multi-agent consent to a shared resolution? Do not narrate consensus unless implemented.
-- Which exact event triggers a Claude Code reawakening, and does it work for an idle but running session?
-- Which tests are user-visible versus hidden holdouts, and who maintains them?
-- Who logs human interventions? Ideally a neutral recorder using the same definitions in every mode.
+- Cowork requires both agents in a conflict thread to agree, plus a green check, before that conflict resolves. It does not assign one fixer. An earlier draft of these docs described a cloud watcher that tested combined snapshots and sent repair requests. That component is gone.
+- Hooks wake an idle Claude Code session when its inbox receives a task, a conflict, or a message.
+- Agents may run `npm test`. The hidden holdout suite in `evaluator/acceptance/` is maintained by the benchmark operator and is withheld from every mode.
+- One neutral recorder logs human interventions with the same definitions in every mode.
 
 ## Starter commands
 
-Trials use Node.js 22 or newer. From this coordinator checkout:
+Trials use Node.js 24 or newer, the same version in all three modes. `bench.py start` appends that machine's exact `node --version` to the trial notes. From this coordinator checkout:
 
 ```bash
 npm install

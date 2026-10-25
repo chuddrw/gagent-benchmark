@@ -8,9 +8,9 @@ The comparison has three modes. Each mode starts from the same `benchmark-start`
 | --- | --- | --- |
 | Solo | `solo` | One agent, one machine, `prompts/solo.md`. No subagents and no Gagent. |
 | GitHub | `github` | Four agents, four machines, `prompts/agent-a.md` through `prompts/agent-d.md`. Coordination is GitHub only. |
-| Gagent | `gagent` | The same four prompts, machines, and tickets as GitHub, plus Gagent. |
+| Gagent | `gagent` | The same four prompts, machines, and tickets as GitHub, plus Agent Cowork. The mode name stays `gagent`. |
 
-Agent A owns `src/cart.ts`. Agent B owns `src/discounts.ts`. Agent C owns `src/inventory.ts`. Agent D owns `src/orders.ts`, `src/demo.ts`, and checkout integration. The solo agent owns all of those files.
+Agent A owns `src/cart.ts`. Agent B owns `src/discounts.ts`. Agent C owns `src/inventory.ts`. Agent D owns `src/orders.ts`, `src/demo.ts`, and checkout integration. The solo agent owns all of those files. `cowork.owners.json` records that same ownership for Agent Cowork. Solo and GitHub ignore the file. It carries no instructions for the agents, and every mode's starter includes it.
 
 ## What a passing trial means
 
@@ -22,7 +22,7 @@ These outcomes do not end the trial:
 - `npm test` passes.
 - An agent says the work is finished.
 - One module's own tests pass.
-- A Gagent watcher reports green.
+- `check_with_team` or `cowork/full-stack` is green.
 
 `npm test` runs `test/smoke.test.ts` and any `*.test.ts` files the agents added under `test/` or `src/`. Those tests help the agents develop. The score is the holdout suite plus the demo, run by the evaluator from the coordinator checkout.
 
@@ -108,6 +108,23 @@ The primary claim is about human minutes and human events to a holdout pass. Ela
 
 If Gagent changed the prompt, the model, or the agent's autonomy beyond coordination, record that in the trial notes. That difference is a confound, not a coordination result.
 
+## gagent mode protocol
+
+Agent Cowork is the software. `gagent` is the mode name in `bench.py` and the reports. The same rules are in `SETUP_AND_PROMPTS.md`.
+
+Each agent gets its ticket prompt directly, exactly as in GitHub mode. `ask_orchestrator` is not the entry point for a scored trial. If a team uses it, record that in the trial notes.
+
+Count Cowork actions with the existing event types. Do not add new ones.
+
+- Clicking Approve or Send back on a review, and approving a fix that changed tests: `approval`.
+- Deciding an escalated conflict, or any debugging or editing: `human_intervention`, with its duration.
+- A Cowork conflict thread opening: `conflict`.
+- A fix made from a thread: `repair_attempt`.
+
+A green `check_with_team` or a green `cowork/full-stack` is not success. Only `scripts/evaluate-candidate.sh` exiting 0 is success, as in the other modes.
+
+Cowork setup time is overhead and stays outside the scored clock. Run `install-hooks`, `doctor`, and the database reset before `bench.py start`. The per-trial commands are in `SETUP_AND_PROMPTS.md`.
+
 ## Running one trial
 
 Create the tag once from the coordinator checkout, after `npm install`:
@@ -125,6 +142,8 @@ bash scripts/reset-experiment.sh ../trials/<trial-id>
 python bench.py start --mode <solo|github|gagent> --trial <trial-id> --out results \
   --notes 'model, agent version, time budget, last prompt dispatch'
 ```
+
+`bench.py start` appends the exact `node --version` from the machine that runs it. Every laptop in every mode uses Node.js 24 or newer, and all three modes use that same version.
 
 Give the solo agent `prompts/solo.md`. Give each GitHub or Gagent agent only its own file in `prompts/`. In the trial worktree, the sanity checks are `npm ci`, `npm run typecheck`, and `npm test`.
 

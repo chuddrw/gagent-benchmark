@@ -1,0 +1,10 @@
+{
+  "about": "Who owns which MiniShop module. Read by Agent Cowork (gagent mode); ignored otherwise.",
+  "shared": ["src/types.ts"],
+  "owners": [
+    { "agent": "a", "human": "A", "feature": "Cart and catalog", "paths": ["src/cart.ts"] },
+    { "agent": "b", "human": "B", "feature": "Coupons", "paths": ["src/discounts.ts"] },
+    { "agent": "c", "human": "C", "feature": "Inventory", "paths": ["src/inventory.ts"] },
+    { "agent": "d", "human": "D", "feature": "Orders and CLI demo", "paths": ["src/orders.ts", "src/demo.ts"] }
+  ]
+}

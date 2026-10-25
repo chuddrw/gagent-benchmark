@@ -8,6 +8,14 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def node_version():
+    try:
+        completed = subprocess.run(['node', '--version'], check=True, capture_output=True, text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return 'unknown'
+    return completed.stdout.strip() or 'unknown'
+
+
 def root(args):
     return pathlib.Path(args.out) / args.trial
 
@@ -54,8 +62,13 @@ args = ap.parse_args()
 if args.cmd == 'start':
     d = root(args)
     d.mkdir(parents=True, exist_ok=False)
-    save(args, {'trial': args.trial, 'mode': args.mode, 'notes': args.notes, 'start_epoch': time.time(), 'started_at': now(), 'status': 'running'})
-    log(args, 'start', mode=args.mode)
+    version = node_version()
+    notes = args.notes.strip()
+    marker = f'node {version}'
+    if marker not in notes:
+        notes = f'{notes}; {marker}' if notes else marker
+    save(args, {'trial': args.trial, 'mode': args.mode, 'notes': notes, 'node_version': version, 'start_epoch': time.time(), 'started_at': now(), 'status': 'running'})
+    log(args, 'start', mode=args.mode, node_version=version)
     print(d)
 elif args.cmd == 'event':
     load(args)

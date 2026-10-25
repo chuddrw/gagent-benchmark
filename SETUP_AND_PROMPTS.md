@@ -4,13 +4,13 @@
 Compare (A) one developer/agent on one computer; (B) four developers/agents on four computers collaborating with GitHub; (C) the same four people, agents, computers, and tickets with Gagent coordination. Primary endpoint: active human intervention minutes to a passing integrated application. Secondary endpoints: wall-clock completion time, human intervention count, success/acceptance coverage, agent tokens/cost, repair loops.
 
 ## Freeze these before starting
-- **Project:** MiniShop Checkout, a Node.js 22 + TypeScript strict-mode **backend library plus a minimal CLI demo**. No external database, payment service, auth, browser UI, or network dependency. Use Vitest. Do not change the tech stack between conditions.
-- **Starting repository:** One tagged Git commit `benchmark-start` containing package.json/lockfile, tsconfig.json, vitest config, `src/types.ts` with public types and interfaces below, `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts` exporting typed function signatures that throw `NotImplementedError` with the message `Not implemented`, `src/demo.ts` placeholder, and a README with the same specification. Starter code is **identical** in all conditions. Do not provide one condition extra implementation code.
+- **Project:** MiniShop Checkout, a Node.js 24 or newer + TypeScript strict-mode **backend library plus a minimal CLI demo**. Use the same Node version in all three modes. No external database, payment service, auth, browser UI, or network dependency. Use Vitest. Do not change the tech stack between conditions.
+- **Starting repository:** One tagged Git commit `benchmark-start` containing package.json/lockfile, tsconfig.json, vitest config, `cowork.owners.json`, `src/types.ts` with public types and interfaces below, `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts` exporting typed function signatures that throw `NotImplementedError` with the message `Not implemented`, `src/demo.ts` placeholder, and a README with the same specification. `cowork.owners.json` names module owners for Agent Cowork and carries no instructions for the agents. Solo and GitHub ignore it. Starter code is **identical** in all conditions. Do not provide one condition extra implementation code.
 - **Acceptance:** An evaluator-controlled, read-only test suite, developed and verified before trials and not visible to agents. Use a separate repo/worktree. Same assertions for all conditions. Agents may write their own unit tests; the hidden suite is used only to score finished candidate. Provide public behavioral specification, not hidden test code.
 - **Resources:** Same model, model configuration, agent CLI version, repo base, prompts, tool access (apart from Gagent), and time limit (recommended 60 minutes) in each run. In B/C use four separate machines and one agent per machine; no additional invisible agents. In A use just one agent (no subagents). Fix a max spend per agent and disclose aggregate spend.
 - **Human assistance:** Same rule for all three: humans may answer clarifying questions, coordinate, and manually fix issues, but every active intervention is timed and logged. Initial prompt and environment setup do not count. No human may edit the benchmark's acceptance tests.
 - **Condition isolation:** Use a clean branch or clone per run, independent new agent sessions, cleared Gagent state/inboxes, and unique GitHub branches/repo if necessary. No code or solutions from a previous trial may be reused. To reduce learning effects, rotate condition order between repeats, or use separate operators with matched experience.
-- **Fairness:** B and C share **exactly the same task tickets** and common spec. C differs only in Gagent hooks, coordination, watcher, agent-to-agent messaging and automatic repair. Do not instruct B's agents to avoid communicating or resolving conflicts through GitHub. Avoid injecting contrived contradictory requirements.
+- **Fairness:** B and C share **exactly the same task tickets** and common spec. C differs only in Agent Cowork hooks, MCP tools, the orchestrator, and agent-to-agent conflict threads. The benchmark mode name stays `gagent`. Do not instruct B's agents to avoid communicating or resolving conflicts through GitHub. Avoid injecting contrived contradictory requirements.
 
 ## Shared task specification
 
@@ -76,9 +76,51 @@ Each agent receives SPEC.md plus **only its ticket below**, then the common inst
 ### Agent D: Orders + CLI integration
 > You own `src/orders.ts`, `src/demo.ts`, and checkout-focused tests. Implement full checkout orchestration, error propagation, order storage, same-order-ID request idempotence, and the runnable demo according to SPEC.md and `src/types.ts`. Integrate with the other three public modules. Coordinate interface assumptions and integration failures with those agents using the channels enabled in this scenario. Do not independently rewrite their modules. Deliver an end-to-end runnable checkout flow.
 
-**B setup:** Four developer laptops, four fresh Claude Code sessions (one per laptop), four branches (e.g. `feature/cart`, `feature/coupons`, `feature/inventory`, `feature/orders`), GitHub issues/PRs/comments and standard CI. Agents and operators may communicate through GitHub and ask for help under the common policy. No Gagent tool calls, hooks or auto-WIP watcher. A human integrates PRs unless the normal GitHub workflow already allows safe agent merges; record actions.
+**B setup:** Four developer laptops, four fresh Claude Code sessions (one per laptop), four branches (e.g. `feature/cart`, `feature/coupons`, `feature/inventory`, `feature/orders`), GitHub issues/PRs/comments and standard CI. Agents and operators may communicate through GitHub and ask for help under the common policy. No Agent Cowork tool calls, hooks, orchestrator, or `wip/<agent>` snapshots. A human integrates PRs unless the normal GitHub workflow already allows safe agent merges; record actions.
 
-**C setup:** Identical four laptops, sessions, branches, ownership tickets, CI and prompts; enable Gagent MCP/tools and hooks. Snapshots go to dedicated `wip/<agent>` refs; the cloud watcher tests temporary combined snapshots, reports failures, shares intentions and sends repair requests. Agents may automatically negotiate and repair through Gagent if those capabilities actually exist. Do not claim automated negotiation if the deployed build only assigns one fixer. Keep normal GitHub integration as the final deliverable. Record Gagent manual setup separately as overhead.
+**C setup:** Identical four laptops, sessions, branches, ownership tickets, CI, and prompts. The product is Agent Cowork; the mode name stays `gagent`. Hooks snapshot each agent's uncommitted work to `wip/<agent>` after every edit, and wake an idle agent when its inbox gets a task, a conflict, or a message. MCP tools are `post_intent`, `check_with_team` (that agent's work merged with every teammate's work in progress, then `tsc` and Vitest), `pull_teammate`, conflict-thread messages and `agree`, `ask_orchestrator`, and `get_full_stack`. The orchestrator is Factory Droid: it plans a human request into per-owner tasks, flags expected conflicts, and asks the affected humans to review a change to `src/types.ts` or to another owner's files. A conflict is a thread between the two agents. Both agreeing, plus a green check, resolves it. After 12 messages or 5 minutes it escalates to both humans on the dashboard. `cowork/full-stack` is `main` plus everyone's latest work, pushed only when the merged result passes. Keep normal GitHub integration as the final deliverable. Cowork setup time is overhead and stays outside the scored clock.
+
+### Per-trial setup for gagent mode
+
+Run the Cowork commands from the Agent Cowork repository (`CalHacks26`). Each trial gets its own GitHub remote. From this benchmark repository, seed it with only the starter:
+
+```bash
+git push <trial-remote> benchmark-start:refs/heads/main
+```
+
+On every laptop, once per trial clone:
+
+```bash
+npm run install-hooks -- --demo <trial clone> --name <a|b|c|d>
+npm run doctor -- --demo <trial clone>
+```
+
+`doctor` must print `This laptop is ready.` `install-hooks` writes `.claude/settings.local.json` and `.mcp.json` into the clone. The starter `.gitignore` keeps both out of commits.
+
+One laptop runs the orchestrator against a separate, untouched clone of the trial repo:
+
+```bash
+DEMO_REPO_PATH=<untouched trial clone> FACTORY_API_KEY=<key> npm run orchestrator
+```
+
+Between trials, clear Cowork state so no `wip/<agent>` snapshot, inbox message, or fact leaks into the next trial. `scripts/demo-reset.ts` deletes those branches and the database rows:
+
+```bash
+npm run reset -- --agents a,b,c,d --clones <clone>[,<clone>...] --yes
+```
+
+Do not pass `--reset-main`. That option expects a `demo-base` tag and force-pushes it to `main`. This benchmark has no `demo-base` tag. Start the next trial from a fresh remote seeded with `benchmark-start`.
+
+## Gagent mode protocol
+
+These rules keep `gagent` comparable with `github`. The same rules are in `METRICS.md`.
+
+- Each agent receives its ticket prompt directly, exactly as in GitHub mode. `ask_orchestrator` is not the entry point for a scored trial. If a team uses it, record that in the trial notes.
+- Clicking Approve or Send back on a review, and approving a fix that changed tests, is `bench.py` event type `approval`.
+- Deciding an escalated conflict, or any debugging or editing, is `human_intervention` with its duration.
+- A Cowork conflict thread opening is `conflict`. A fix made from that thread is `repair_attempt`. Do not add new event types.
+- A green `check_with_team` or a green `cowork/full-stack` is not success. Only `scripts/evaluate-candidate.sh` exiting 0 is success.
+- `install-hooks`, `doctor`, and the database reset are overhead. Finish them before `bench.py start`.
 
 ## Test execution steps for each condition
 1. Recreate clean checkout of `benchmark-start`, install dependencies with `npm ci`, run starter sanity checks, and ensure initial acceptance tests fail as expected on unimplemented functions.
@@ -109,7 +151,7 @@ Each agent receives SPEC.md plus **only its ticket below**, then the common inst
 - [ ] All teams start from same baseline commit and identical dependencies.
 - [ ] No contaminated agent memory/conversation from earlier trials.
 - [ ] B has fair access to normal GitHub coordination, not artificially restricted.
-- [ ] End condition uses independent evaluator tests, not Gagent's own green check.
+- [ ] End condition uses independent evaluator tests, not a green `check_with_team` or `cowork/full-stack`.
 - [ ] Measured outcome highlights both human intervention time and overall completion time.
 
 ## Specific risk to disclose
