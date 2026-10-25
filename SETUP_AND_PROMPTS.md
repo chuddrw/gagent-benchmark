@@ -5,14 +5,16 @@ Compare (A) one developer/agent on one computer; (B) four developers/agents on f
 
 ## Freeze these before starting
 - **Project:** MiniShop Checkout, a Node.js 22 + TypeScript strict-mode **backend library plus a minimal CLI demo**. No external database, payment service, auth, browser UI, or network dependency. Use Vitest. Do not change the tech stack between conditions.
-- **Starting repository:** One tagged Git commit `benchmark-start` containing package.json/lockfile, tsconfig.json, vitest config, `src/types.ts` with public types and interfaces below, `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts` exporting typed function signatures with `throw new Error('Not implemented')`, `src/demo.ts` placeholder, and a README with the same specification. Starter code is **identical** in all conditions. Do not provide one condition extra implementation code.
+- **Starting repository:** One tagged Git commit `benchmark-start` containing package.json/lockfile, tsconfig.json, vitest config, `src/types.ts` with public types and interfaces below, `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts` exporting typed function signatures that throw `NotImplementedError` with the message `Not implemented`, `src/demo.ts` placeholder, and a README with the same specification. Starter code is **identical** in all conditions. Do not provide one condition extra implementation code.
 - **Acceptance:** An evaluator-controlled, read-only test suite, developed and verified before trials and not visible to agents. Use a separate repo/worktree. Same assertions for all conditions. Agents may write their own unit tests; the hidden suite is used only to score finished candidate. Provide public behavioral specification, not hidden test code.
 - **Resources:** Same model, model configuration, agent CLI version, repo base, prompts, tool access (apart from Gagent), and time limit (recommended 60 minutes) in each run. In B/C use four separate machines and one agent per machine; no additional invisible agents. In A use just one agent (no subagents). Fix a max spend per agent and disclose aggregate spend.
 - **Human assistance:** Same rule for all three: humans may answer clarifying questions, coordinate, and manually fix issues, but every active intervention is timed and logged. Initial prompt and environment setup do not count. No human may edit the benchmark's acceptance tests.
 - **Condition isolation:** Use a clean branch or clone per run, independent new agent sessions, cleared Gagent state/inboxes, and unique GitHub branches/repo if necessary. No code or solutions from a previous trial may be reused. To reduce learning effects, rotate condition order between repeats, or use separate operators with matched experience.
 - **Fairness:** B and C share **exactly the same task tickets** and common spec. C differs only in Gagent hooks, coordination, watcher, agent-to-agent messaging and automatic repair. Do not instruct B's agents to avoid communicating or resolving conflicts through GitHub. Avoid injecting contrived contradictory requirements.
 
-## Shared task specification (paste into SPEC.md in every starter repo)
+## Shared task specification
+
+`SPEC.md` is the agent-facing copy of this brief, including the Frozen rulings. Keep that file intact. The text below is the original brief for reference.
 
 Build a deterministic, in-memory MiniShop order service with four areas: cart, discounts, inventory, and checkout/orders. Represent all money as integer cents; quantities and stock counts are nonnegative integers, with requested purchase quantities strictly positive. Dates, time zones, payment providers, persistence, and network services are out of scope. Expose an end-to-end CLI demo calling the public APIs to purchase products.
 
@@ -43,6 +45,8 @@ Suggested public functions/classes (actual starter `src/*.ts` stubs must establi
 - `new OrderService(cartCatalog: CatalogItem[], coupons: Coupon[], inventory: InventoryService)`, `.checkout(req: CheckoutRequest): Order`, `.getOrder(orderId: string): Order | undefined`.
 
 Use `ShopError extends Error` with `code: ShopErrorCode` for shared errors. For idempotence, compare normalized checkout inputs (same SKUs/quantities even if item ordering differs), not the raw object identity. Whether a coupon omitted or undefined is equivalent should be explicit in acceptance tests.
+
+The normative copy of this brief is `SPEC.md`. Its "Frozen rulings" section is also normative for every condition. Those rulings are the acceptance-test decisions the brief originally left open. Do not give one condition a different reading.
 
 ## Exact common instruction (append to EVERY agent prompt)
 
