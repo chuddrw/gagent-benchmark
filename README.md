@@ -12,13 +12,13 @@ Modes:
 
 ## Test project: MiniShop checkout (TypeScript)
 
-Create a deliberately small starter repository with `src/cart.ts`, `src/discount.ts`, `src/inventory.ts`, `src/orders.ts`, shared `src/types.ts`, and tests. Deliver a CLI or minimal web UI that allows a user to add cart items, apply a discount, reserve stock, and create an order.
+The starter repository contains `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts`, shared `src/types.ts`, and a CLI demo at `src/demo.ts`. There is no web UI. Normative behavior is `SPEC.md`, including its Frozen rulings. Where this overview is shorter, `SPEC.md` wins.
 
 ### Functional specification, identical in all modes
-1. **Cart**: `priceCents` is an integer; calculate line totals and subtotal from quantity; reject nonpositive quantities.
-2. **Discounts**: percent discount is an integer `0..100`, applied to subtotal in integer cents with an explicitly documented rounding rule; shipping is not discounted.
+1. **Cart**: `priceCents` is an integer number of cents; calculate line totals and subtotal from quantity. Purchase quantities are strictly positive. `SPEC.md` has the full validation rules.
+2. **Discounts**: percent discount is an integer `0..100`, applied to the pre-discount subtotal in integer cents with the rounding rule in `SPEC.md`. This benchmark has no shipping charge.
 3. **Inventory**: check and reserve integer quantities; insufficient stock returns a structured error; do not decrement stock for a failed order.
-4. **Orders**: create an order only after validating cart, discounts, and stock; charge the agreed total, reserve stock exactly once, and return an order ID and total in cents.
+4. **Orders**: create an order only after validating cart, discounts, and stock; record the agreed total, reserve stock exactly once, and return an order id and total in cents. The only stored status is `confirmed`.
 5. **Shared contract**: All interfaces use `priceCents`, integer quantities, typed errors, and the documented rounding rule. Do not change the public acceptance criteria without recording explicit human approval.
 
 ### Feature tickets (identical for modes github and gagent)
@@ -82,12 +82,14 @@ Example:
 python bench.py start --mode github --trial github-01 --out results
 python bench.py event --trial github-01 --out results --type human_intervention --duration-sec 240 --note 'Developer resolved conflicting order totals'
 python bench.py event --trial github-01 --out results --type repair_attempt --note 'Changed shared order total calculation'
-python bench.py evaluate --trial github-01 --out results --command 'npm test -- --run'
+python bench.py evaluate --trial github-01 --out results --command 'bash scripts/evaluate-candidate.sh /path/to/candidate'
 python bench.py finish --trial github-01 --out results --success
 python bench.py report --out results
 ```
 
-For independent tests, run `evaluate` against the frozen holdout suite on the final candidate in a separate evaluator worktree. **Do not declare success using only tests written by the agents.**
+`npm test` runs the public smoke test and any unit tests the agents added. It is not the success criterion. Score the candidate with `scripts/evaluate-candidate.sh`, which runs typecheck, `npm test`, the hidden acceptance suite, and the demo without modifying the candidate checkout. **Do not declare success using only tests written by the agents.**
+
+The time-budget examples in this file (45 minutes) and in `SETUP_AND_PROMPTS.md` (60 minutes) are suggestions. Pick one budget and use it for every mode.
 
 ## Replication and reporting
 - Minimum demo: one trial per mode; describe as an illustration, **not** a statistically meaningful speedup claim.
@@ -112,3 +114,58 @@ To demonstrate the mechanism deterministically, use an explicitly labeled diagno
 - Which exact event triggers a Claude Code reawakening, and does it work for an idle but running session?
 - Which tests are user-visible versus hidden holdouts, and who maintains them?
 - Who logs human interventions? Ideally a neutral recorder using the same definitions in every mode.
+
+## Starter commands
+
+Trials use Node.js 22 or newer. From this coordinator checkout:
+
+```bash
+npm install
+npm run typecheck
+npm test
+npm run test:acceptance
+npm run demo
+```
+
+`npm run typecheck` and `npm test` pass on the starter. `npm test` is only an infrastructure smoke test. `npm run test:acceptance` and `npm run demo` fail until the product behavior in `SPEC.md` is implemented. Those failures should be missing behavior, reported as `NotImplementedError: Not implemented`, not import or configuration errors.
+
+| Command | What it runs | Starter result |
+| --- | --- | --- |
+| `npm run typecheck` | `tsc --noEmit` for `src/`, public tests, and the holdout suite | Pass |
+| `npm test` | Vitest files in `test/` and `src/**/*.test.ts` | Pass |
+| `npm run test:acceptance` | Vitest files in `evaluator/acceptance/` | Fail |
+| `npm run demo` | Compiles `src/` and runs the CLI | Fail |
+
+Agents may add unit tests under `test/` or as `src/**/*.test.ts`. Those run with `npm test`. They are not the acceptance suite.
+
+The modules `src/cart.ts`, `src/discounts.ts`, `src/inventory.ts`, `src/orders.ts`, and `src/demo.ts` throw `NotImplementedError` on purpose. Do not fill in MiniShop while preparing a trial.
+
+## Hidden acceptance tests
+
+`evaluator/acceptance/` is owned by the person running the benchmark. It is the same suite for solo, GitHub, and Gagent. Agents must not read or edit it. `scripts/create-benchmark-start.sh` leaves that directory, `vitest.acceptance.config.ts`, `bench.py`, `prompts/`, and `scripts/` out of the tagged starter so a trial checkout cannot see the cases.
+
+`scripts/evaluate-candidate.sh <candidate-checkout>` copies this repository to a temporary directory, overlays the candidate's `src/` and `test/`, and runs `npm ci`, typecheck, public tests, acceptance tests, and the demo. It does not modify the candidate or the coordinator working tree.
+
+## `benchmark-start`
+
+Create the frozen starter tag once, after `npm install` has produced `package-lock.json`. The script writes an orphan commit and an annotated tag. It does not move `HEAD`, change the current branch, or edit the working tree. If the tag already exists, the script stops.
+
+```bash
+bash scripts/create-benchmark-start.sh
+```
+
+Give every trial a checkout of that tag only. Do not give agents this coordinator branch; its history and tree contain the holdout tests.
+
+```bash
+bash scripts/reset-experiment.sh ../trials/solo-01
+```
+
+That adds a detached git worktree at `benchmark-start` and refuses to replace an existing directory. To publish a trial remote that has no other branches:
+
+```bash
+git push <trial-remote> benchmark-start:refs/heads/main
+```
+
+Do not force-push. Do not retag `benchmark-start` after a trial has started. Deleting the tag is a manual decision and is not part of the script.
+
+Inside a trial worktree, `npm ci`, `npm run typecheck`, and `npm test` are the starter sanity checks. Run `npm run test:acceptance` from this coordinator checkout, or run `scripts/evaluate-candidate.sh` against the worktree, to confirm the unimplemented starter fails the holdout suite.
